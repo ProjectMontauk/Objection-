@@ -3,7 +3,8 @@ import { transcribeBufferWithAssembly } from "@/lib/assemblyai";
 import { WHISPER_MAX_BYTES } from "@/lib/whisperLimits";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+/** Match stream route; long AssemblyAI jobs need Pro (max 800s) on Vercel. */
+export const maxDuration = 800;
 
 export async function POST(request: Request) {
   const key = process.env.ASSEMBLYAI_API_KEY?.trim();
