@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { transcribeReadableStreamWithAssembly } from "@/lib/assemblyai";
 
 export const runtime = "nodejs";
-/** Upload + poll; long interviews may need a high limit on your host (Vercel caps by plan). */
-export const maxDuration = 800;
+/**
+ * Vercel Hobby/Pro default cap is 300s. Higher values fail deploy on Hobby.
+ * For longer jobs, use a larger plan or run transcribe off Vercel.
+ */
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   const key = process.env.ASSEMBLYAI_API_KEY?.trim();
