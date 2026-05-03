@@ -144,21 +144,29 @@ export async function readTranscribeApiResponse(
     }
   }
 
+  const messageField =
+    typeof parsed.message === "string" ? parsed.message.trim() : "";
+
   const fromField =
-    typeof parsed.error === "string"
-      ? parsed.error.trim()
-      : parsed.error != null
-        ? JSON.stringify(parsed.error).slice(0, 400)
-        : "";
+    (typeof parsed.error === "string" ? parsed.error.trim() : "") ||
+    messageField ||
+    (parsed.error != null ? JSON.stringify(parsed.error).slice(0, 400) : "");
 
   if (!res.ok) {
-    return {
-      ok: false,
-      error:
-        fromField ||
-        raw.trim().slice(0, 400) ||
-        `Transcription request failed (${res.status}).`,
-    };
+    let err =
+      fromField ||
+      raw.trim().slice(0, 400) ||
+      `Transcription request failed (${res.status}).`;
+
+    if (
+      res.status === 502 &&
+      /application failed to respond|502/i.test(err)
+    ) {
+      err +=
+        " The server may have hit a hosting time limit or ran out of memory on a large file—in Railway, raise the HTTP request timeout (several minutes) and instance memory, or try a smaller audio export.";
+    }
+
+    return { ok: false, error: err };
   }
 
   return {

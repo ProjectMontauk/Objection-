@@ -12,6 +12,9 @@ function formatMb(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+/** Prefer streamed upload first: avoids buffering the whole file in RAM on `/api/transcribe`. */
+const STREAM_FIRST_MIN_BYTES = 20 * 1024 * 1024;
+
 export function RecordingStep() {
   const {
     transcript,
@@ -65,6 +68,14 @@ export function RecordingStep() {
       };
 
       try {
+        if (file.size >= STREAM_FIRST_MIN_BYTES) {
+          setTranscribeDetail(
+            `Large file (${formatMb(file.size)}): streaming to the server…`,
+          );
+          const streamed = await tryStreamUpload();
+          if (streamed) return;
+        }
+
         setTranscribeDetail(
           `Uploading ${file.name || "recording"} (${formatMb(file.size)})…`,
         );

@@ -171,7 +171,8 @@ export async function pollTranscriptUntilComplete(
   options?: { pollMs?: number; deadlineMs?: number },
 ): Promise<AssemblyTranscriptResult> {
   const pollMs = options?.pollMs ?? DEFAULT_POLL_MS;
-  const deadline = Date.now() + (options?.deadlineMs ?? 280_000);
+  /** Long video + diarization can exceed a few minutes; keep below typical host max (~15m). */
+  const deadline = Date.now() + (options?.deadlineMs ?? 600_000);
 
   while (Date.now() < deadline) {
     const res = await fetch(`${BASE}/v2/transcript/${transcriptId}`, {
@@ -227,7 +228,7 @@ export async function transcribeBufferWithAssembly(
 ): Promise<AssemblyTranscriptResult> {
   const uploadUrl = await uploadAudioToAssembly(apiKey, audioBuffer);
   const id = await createTranscriptJob(apiKey, uploadUrl, createJobOptionsFromEnv());
-  return pollTranscriptUntilComplete(apiKey, id);
+  return pollTranscriptUntilComplete(apiKey, id, { deadlineMs: 600_000 });
 }
 
 export async function transcribeReadableStreamWithAssembly(
