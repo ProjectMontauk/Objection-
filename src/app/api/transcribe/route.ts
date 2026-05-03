@@ -1,40 +1,11 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { NextResponse } from "next/server";
 import { transcribeBufferWithAssembly } from "@/lib/assemblyai";
-import { isTranscribeDemoEnabled } from "@/lib/demoMode";
 
 export const runtime = "nodejs";
-/** Match stream route; long AssemblyAI jobs need Pro (max 800s) on Vercel. */
+/** Long AssemblyAI jobs; raise on hosts that allow it (e.g. Railway). */
 export const maxDuration = 800;
 
-async function loadDemoTranscriptText(): Promise<string> {
-  const filePath = path.join(
-    process.cwd(),
-    "public",
-    "demo-interview-transcript.txt",
-  );
-  return (await readFile(filePath, "utf8")).trim();
-}
-
 export async function POST(request: Request) {
-  if (isTranscribeDemoEnabled()) {
-    try {
-      await request.formData();
-    } catch {
-      /* ignore */
-    }
-    try {
-      const text = await loadDemoTranscriptText();
-      return NextResponse.json({ text });
-    } catch {
-      return NextResponse.json(
-        { error: "Demo transcript file is missing on the server." },
-        { status: 500 },
-      );
-    }
-  }
-
   const key = process.env.ASSEMBLYAI_API_KEY?.trim();
   if (!key) {
     return NextResponse.json(

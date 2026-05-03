@@ -1,8 +1,5 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { NextResponse } from "next/server";
 import { transcribeReadableStreamWithAssembly } from "@/lib/assemblyai";
-import { isTranscribeDemoEnabled } from "@/lib/demoMode";
 
 export const runtime = "nodejs";
 /**
@@ -12,26 +9,6 @@ export const runtime = "nodejs";
 export const maxDuration = 800;
 
 export async function POST(request: Request) {
-  if (isTranscribeDemoEnabled()) {
-    if (request.body) {
-      await new Response(request.body).arrayBuffer().catch(() => undefined);
-    }
-    try {
-      const filePath = path.join(
-        process.cwd(),
-        "public",
-        "demo-interview-transcript.txt",
-      );
-      const text = (await readFile(filePath, "utf8")).trim();
-      return NextResponse.json({ text });
-    } catch {
-      return NextResponse.json(
-        { error: "Demo transcript file is missing on the server." },
-        { status: 500 },
-      );
-    }
-  }
-
   const key = process.env.ASSEMBLYAI_API_KEY?.trim();
   if (!key) {
     return NextResponse.json(

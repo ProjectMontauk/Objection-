@@ -2,17 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
-import { isTranscribeDemoEnabled } from "@/lib/demoMode";
+import {
+  readTranscribeApiResponse,
+  transcriptFromTranscribeApi,
+} from "@/lib/compareTypes";
 import { useFlow } from "./FlowContext";
-
-/** Will & Aron Enhanced Games interview (served from `public/`). */
-const FIXED_TRANSCRIPT_PATH = "/demo-interview-transcript.txt";
-const FIXED_TRANSCRIPT_DELAY_MS = 5000;
-
-function demoVideoSrc(): string {
-  const u = process.env.NEXT_PUBLIC_DEMO_VIDEO_SRC?.trim();
-  return u || "/demo-interview.mp4";
-}
 
 function formatMb(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(2)} MB`;
@@ -30,8 +24,6 @@ export function RecordingStep() {
   const [transcribeDetail, setTranscribeDetail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const isDemo = isTranscribeDemoEnabled();
-
   const onTranscribe = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -41,16 +33,67 @@ export function RecordingStep() {
       setCompareResult(null);
       setCompareMeta(null);
       setTranscribing(true);
-      setTranscribeDetail(
-        `Received ${file.name || "recording"} (${formatMb(file.size)}). Transcript will appear in about 5 seconds…`,
-      );
-      try {
-        await new Promise((r) => setTimeout(r, FIXED_TRANSCRIPT_DELAY_MS));
-        const res = await fetch(FIXED_TRANSCRIPT_PATH, { cache: "no-store" });
-        if (!res.ok) {
-          throw new Error("Transcript file is missing on the server.");
+      setTranscribeDetail(null);
+
+      const tryStreamUpload = async (): Promise<boolean> => {
+        setTranscribeDetail(
+          "Uploading full file to the server (streamed). Long runs can take several minutes…",
+        );
+        const streamRes = await fetch("/api/transcribe/stream", {
+          method: "POST",
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+            "X-Filename": encodeURIComponent(file.name || "recording.mp4"),
+          },
+          body: file,
+        });
+        const parsed = await readTranscribeApiResponse(streamRes);
+        if (streamRes.status === 413) return false;
+        if (!parsed.ok) {
+          const msg = parsed.error;
+          if (
+            /payload too large|request entity too large|body.*limit|413|maximum.*size/i.test(
+              msg,
+            )
+          ) {
+            return false;
+          }
+          throw new Error(parsed.error);
         }
-        setTranscript((await res.text()).trim());
+        setTranscript(transcriptFromTranscribeApi(parsed.data));
+        return true;
+      };
+
+      try {
+        setTranscribeDetail(
+          `Uploading ${file.name || "recording"} (${formatMb(file.size)})…`,
+        );
+        const fd = new FormData();
+        fd.set("file", file);
+        const res = await fetch("/api/transcribe", {
+          method: "POST",
+          body: fd,
+        });
+        const parsed = await readTranscribeApiResponse(res);
+
+        if (parsed.ok) {
+          setTranscript(transcriptFromTranscribeApi(parsed.data));
+          return;
+        }
+
+        const msg = parsed.error;
+        const tooLarge =
+          res.status === 413 ||
+          /payload too large|request entity too large|413|maximum.*size|too large/i.test(
+            msg,
+          );
+
+        if (tooLarge) {
+          const streamed = await tryStreamUpload();
+          if (streamed) return;
+        }
+
+        throw new Error(msg);
       } catch (err) {
         console.error("[Citizen Kane] transcribe flow", err);
         setError(
@@ -58,7 +101,7 @@ export function RecordingStep() {
             ? err.message
             : typeof err === "string"
               ? err
-              : "Could not load transcript.",
+              : "Transcription failed.",
         );
       } finally {
         setTranscribing(false);
@@ -89,43 +132,14 @@ export function RecordingStep() {
           Step 1 · Recording
         </div>
         <h2 className="font-serif text-2xl font-semibold text-ink md:text-3xl">
-          {isDemo ? "Demo interview" : "Upload your interview"}
+          Upload your interview
         </h2>
         <p className="mt-3 max-w-prose text-pretty font-sans text-sm leading-relaxed text-ink-muted">
-          {isDemo ? (
-            <>
-              Sample Enhanced Games conversation. Watch the clip below if you
-              like, then choose any video or audio file—the Will &amp; Aron
-              interview transcript loads into the box below after about five
-              seconds.
-            </>
-          ) : (
-            <>
-              MP4 or other audio/video. After you choose a file, the Will &amp;
-              Aron interview transcript appears below automatically after about
-              five seconds.
-            </>
-          )}
+          MP4 or other audio/video. Your file is sent to the server and
+          transcribed with{" "}
+          <span className="whitespace-nowrap">AssemblyAI</span>. Large files can
+          take a few minutes before the transcript is ready.
         </p>
-
-        {isDemo ? (
-          <div className="mt-6 border border-rule bg-field p-3 sm:p-4">
-            <p className="font-sans text-xs font-semibold uppercase tracking-wide text-ink-muted">
-              Sample video
-            </p>
-            <video
-              className="mt-2 aspect-video w-full max-h-[min(50vh,420px)] bg-black object-contain"
-              src={demoVideoSrc()}
-              controls
-              playsInline
-              preload="metadata"
-            >
-              Add <code className="text-[0.65rem]">public/demo-interview.mp4</code>{" "}
-              or set{" "}
-              <code className="text-[0.65rem]">NEXT_PUBLIC_DEMO_VIDEO_SRC</code>.
-            </video>
-          </div>
-        ) : null}
 
         <div className="mt-6">
           <label className="inline-flex cursor-pointer items-center gap-3 border border-rule bg-field px-4 py-3 font-sans text-sm font-medium transition hover:bg-field-muted">

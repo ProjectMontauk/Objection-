@@ -116,3 +116,59 @@ export function transcriptFromTranscribeApi(data: {
 }): string {
   return (data.textWithSpeakers || data.text || "").trim();
 }
+
+export type TranscribeApiOk = {
+  ok: true;
+  data: { text?: string; textWithSpeakers?: string };
+};
+
+export type TranscribeApiErr = { ok: false; error: string };
+
+/** Parse `/api/transcribe` JSON (or surface HTML/gateway bodies). */
+export async function readTranscribeApiResponse(
+  res: Response,
+): Promise<TranscribeApiOk | TranscribeApiErr> {
+  const raw = await res.text();
+  let parsed: Record<string, unknown> = {};
+  if (raw) {
+    try {
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      const bit = raw.trim().slice(0, 400);
+      return {
+        ok: false,
+        error: bit
+          ? `Non-JSON response (${res.status}): ${bit}`
+          : `Unexpected empty or non-JSON response (${res.status}).`,
+      };
+    }
+  }
+
+  const fromField =
+    typeof parsed.error === "string"
+      ? parsed.error.trim()
+      : parsed.error != null
+        ? JSON.stringify(parsed.error).slice(0, 400)
+        : "";
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      error:
+        fromField ||
+        raw.trim().slice(0, 400) ||
+        `Transcription request failed (${res.status}).`,
+    };
+  }
+
+  return {
+    ok: true,
+    data: {
+      text: typeof parsed.text === "string" ? parsed.text : undefined,
+      textWithSpeakers:
+        typeof parsed.textWithSpeakers === "string"
+          ? parsed.textWithSpeakers
+          : undefined,
+    },
+  };
+}
