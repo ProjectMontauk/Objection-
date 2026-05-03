@@ -1,26 +1,111 @@
 @import "tailwindcss";
 
+html {
+  color-scheme: dark;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Dark editorial: black field, light type, subtle rules */
+  --field: #050505;
+  --field-muted: #111111;
+  --ink: #f4f4f5;
+  --ink-muted: #a1a1aa;
+  --rule: rgba(255, 255, 255, 0.14);
+  --wip-navy: #7eb8ff;
+  --wip-navy-hover: #a8d0ff;
+  /* Deep band for memorandum / hero (white type) */
+  --wip-navy-surface: #152238;
+  --accent: #7eb8ff;
+  --highlight: #141414;
+  --tag-bg: #e4e4e7;
+  --tag-fg: #18181b;
+  /* Solid buttons on dark (inverse of page chrome) */
+  --cta-bg: #f4f4f5;
+  --cta-fg: #0a0a0a;
+  --cta-hover: #d4d4d8;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-field: var(--field);
+  --color-field-muted: var(--field-muted);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-rule: var(--rule);
+  --color-wip-navy: var(--wip-navy);
+  --color-wip-navy-hover: var(--wip-navy-hover);
+  --color-wip-navy-surface: var(--wip-navy-surface);
+  --color-accent: var(--accent);
+  --color-highlight: var(--highlight);
+  --color-cta-bg: var(--cta-bg);
+  --color-cta-fg: var(--cta-fg);
+  --color-cta-hover: var(--cta-hover);
+  --color-tag-bg: var(--tag-bg);
+  --color-tag-fg: var(--tag-fg);
+  --font-sans: var(--font-dm);
+  --font-serif: var(--font-newsreader);
+  --font-display: var(--font-playfair);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--field-muted);
+  color: var(--ink);
+  font-family: var(--font-dm), system-ui, sans-serif;
+}
+
+/* Bordered editorial panel (WiP card / blueprint) */
+.wip-panel {
+  border: 1px solid var(--rule);
+  background: var(--highlight);
+}
+
+.wip-panel-muted {
+  border: 1px solid var(--rule);
+  background: var(--field-muted);
+}
+
+/* NYT-style masthead rails */
+.masthead-rule-thick {
+  border-color: var(--rule);
+  border-style: solid;
+  border-width: 1px 0;
+}
+
+/* Main site title: blackletter in the tradition of the Times masthead */
+.masthead-wordmark {
+  font-family: var(--font-masthead-wordmark), "Georgia", serif;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+}
+
+/* Secondary masthead lines (e.g. desk report) */
+.masthead-title {
+  font-family: var(--font-playfair), "Georgia", serif;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.rule-h {
+  border-bottom: 1px solid var(--rule);
+}
+
+.rule-h-top {
+  border-top: 1px solid var(--rule);
+}
+
+/* Outer magazine column */
+.wip-shell {
+  border-left: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+  background: var(--field-muted);
+}
+
+.drop-cap::first-letter {
+  float: left;
+  font-family: var(--font-newsreader), "Georgia", serif;
+  font-size: 3.25rem;
+  line-height: 0.85;
+  padding-right: 0.35rem;
+  font-weight: 600;
+  color: var(--wip-navy);
 }
