@@ -1,12 +1,40 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { NextResponse } from "next/server";
 import { transcribeBufferWithAssembly } from "@/lib/assemblyai";
-import { WHISPER_MAX_BYTES } from "@/lib/whisperLimits";
+import { isTranscribeDemoEnabled } from "@/lib/demoMode";
 
 export const runtime = "nodejs";
 /** Match stream route; long AssemblyAI jobs need Pro (max 800s) on Vercel. */
 export const maxDuration = 800;
 
+async function loadDemoTranscriptText(): Promise<string> {
+  const filePath = path.join(
+    process.cwd(),
+    "public",
+    "demo-interview-transcript.txt",
+  );
+  return (await readFile(filePath, "utf8")).trim();
+}
+
 export async function POST(request: Request) {
+  if (isTranscribeDemoEnabled()) {
+    try {
+      await request.formData();
+    } catch {
+      /* ignore */
+    }
+    try {
+      const text = await loadDemoTranscriptText();
+      return NextResponse.json({ text });
+    } catch {
+      return NextResponse.json(
+        { error: "Demo transcript file is missing on the server." },
+        { status: 500 },
+      );
+    }
+  }
+
   const key = process.env.ASSEMBLYAI_API_KEY?.trim();
   if (!key) {
     return NextResponse.json(
@@ -28,16 +56,6 @@ export async function POST(request: Request) {
   const file = formData.get("file");
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Expected a file field named file." }, { status: 400 });
-  }
-
-  if (file.size > WHISPER_MAX_BYTES) {
-    return NextResponse.json(
-      {
-        error:
-          "File exceeds the 25 MB limit for this upload endpoint. Use the in-browser compression (or export a smaller clip), then try again.",
-      },
-      { status: 400 },
-    );
   }
 
   const type = (file.type || "").toLowerCase();
